@@ -1,0 +1,17 @@
+langchain
+
+python-dotenv
+
+langchain-docling
+langchain-google-genai
+langchain-pinecone
+pinecone-client
+langchain-groq
+rank_bm25
+langchain-community
+
+fastapi
+uvicorn
+
+torch
+transformers
