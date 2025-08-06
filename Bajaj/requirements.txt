@@ -9,9 +9,12 @@ pinecone-client
 langchain-groq
 rank_bm25
 langchain-community
+rank_llm[genai]
 
 fastapi
 uvicorn
 
 torch
 transformers
+
+packaging==24.2
