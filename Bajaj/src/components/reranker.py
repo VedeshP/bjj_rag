@@ -9,7 +9,7 @@ from rank_llm.data import Query, Candidate, Request
 print("--- Initializing RankLLM Gemini Reranker ---")
 try:
     reranker = SafeGenai(
-        model="gemini-2.5-pro",
+        model="gemini-2.5-flash",
         context_size=8192,
         keys=[GOOGLE_API_KEY],
         prompt_mode=PromptMode.RANK_GPT,

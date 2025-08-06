@@ -7,11 +7,9 @@ from pydantic import BaseModel, Field
 from typing import List
 from operator import itemgetter
 
-# Import our components, including the new reranker
 from src.components.llm import get_groq_llm
 from src.components.retriever import get_pinecone_vectorstore
 from src.components.parser import load_documents_with_docling
-from src.components.reranker import rerank_documents
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers.ensemble import EnsembleRetriever
 
@@ -43,17 +41,17 @@ QUERY:
 {question}
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
-
-# --- Build the RAG Chain with Reranker ---
+# --- Build the RAG Chain (Simplified and Faster) ---
 
 def format_docs(docs):
     return "\n\n---\n\n".join(f"Clause Source: {doc.metadata.get('source', 'N/A')}\n\n{doc.page_content}" for doc in docs)
 
 def get_rag_chain():
     """
-    Builds the full RAG chain with an Ensemble Retriever followed by a Gemini Reranker.
+    Builds a streamlined RAG chain using an Ensemble Retriever directly.
+    The reranker step has been removed to meet latency requirements.
     """
-    print("--- Building RAG Chain with Reranker ---")
+    print("--- Building Streamlined RAG Chain (No Reranker) ---")
     
     # 1. Load documents for the in-memory BM25 retriever
     print("Loading documents for BM25 retriever...")
@@ -72,25 +70,14 @@ def get_rag_chain():
     print("...Pinecone retriever initialized.")
 
     # 4. Initialize the Ensemble Retriever
-    print("Initializing Ensemble Retriever...")
+    # We will fetch the top 2 documents to send to the final LLM.
+    # This is a good balance between context quality and speed.
+    print("Initializing Ensemble Retriever to fetch top 2 documents...")
     ensemble_retriever = EnsembleRetriever(
         retrievers=[bm25_retriever, pinecone_retriever],
         weights=[0.5, 0.5]
     )
     print("...Ensemble retriever initialized.")
-
-    # This new helper function orchestrates retrieval and reranking
-    def retrieve_and_rerank(inputs):
-        query = inputs["question"]
-        
-        # Step 1: Get a broad set of initial candidates (e.g., k=10)
-        initial_docs = ensemble_retriever.invoke(query, k=10)
-        
-        # Step 2: Use our new component to rerank and get the best 2
-        final_docs = rerank_documents(query=query, documents=initial_docs, top_k=2)
-        
-        # Step 3: Format the high-quality documents for the final prompt
-        return format_docs(final_docs)
 
     # Initialize the other components
     llm = get_groq_llm()
@@ -101,10 +88,10 @@ def get_rag_chain():
         partial_variables={"format_instructions": json_parser.get_format_instructions()},
     )
 
-    # Build the final chain using our new helper function
+    # Build the final, simpler chain
     rag_chain = (
         {
-            "context": retrieve_and_rerank,
+            "context": itemgetter("question") | ensemble_retriever | format_docs,
             "question": itemgetter("question"),
         }
         | rag_prompt
@@ -112,5 +99,5 @@ def get_rag_chain():
         | json_parser
     )
     
-    print("--- RAG Chain with Reranker Built Successfully ---")
+    print("--- Streamlined RAG Chain Built Successfully ---")
     return rag_chain
