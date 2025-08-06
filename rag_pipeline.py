@@ -7,11 +7,16 @@ from typing import List
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+# from langchain_community.embeddings import HuggingFaceEmbeddings
+
+from langchain_huggingface import HuggingFaceEmbeddings
+
 from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
+
+from langchain_community.document_loaders import UnstructuredURLLoader
 
 load_dotenv()
 
@@ -21,9 +26,11 @@ class DocumentProcessor:
     """
     def __init__(self):
         # Initialize the LLM (Llama 3 via Groq) and the embedding model
-        self.llm = ChatGroq(model_name="llama3-8b-8192", temperature=0)
+        llm_model_options=["llama3-8b-8192"]
+        self.llm = ChatGroq(model_name=llm_model_options[0], temperature=0)
+        emb_model_options=["all-MiniLM-L6-v2", "all-MiniLM-L12-v2"]
         self.embedding_model = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2",
+            model_name=emb_model_options[1],
             model_kwargs={'device': 'cpu'} # Use CPU for embedding
         )
         self.vector_store = None
@@ -32,16 +39,20 @@ class DocumentProcessor:
         """Loads a PDF from a URL, saves it temporarily, and splits it into chunks."""
         try:
             # Download the PDF content
-            response = requests.get(doc_url)
-            response.raise_for_status()  # Raise an exception for bad status codes
+            # response = requests.get(doc_url)
+            # response.raise_for_status()  # Raise an exception for bad status codes
 
             # Write the content to a temporary file
-            with NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-                temp_file.write(response.content)
-                temp_file_path = temp_file.name
+            # with NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+            #     temp_file.write(response.content)
+            #     temp_file_path = temp_file.name
 
             # Load the PDF with PyPDFLoader
-            loader = PyPDFLoader(temp_file_path)
+            # loader = PyPDFLoader(temp_file_path)
+            # documents = loader.load()
+
+            # changed the above as i am now using UnstructuredURLLoader
+            loader = UnstructuredURLLoader(urls=[doc_url])
             documents = loader.load()
 
             # Split the document into chunks
@@ -53,8 +64,9 @@ class DocumentProcessor:
             return chunks
         finally:
             # Clean up the temporary file
-            if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
+            print("document loaded and chinked successfully.")
+            # if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            #     os.remove(temp_file_path)
 
 
     def _create_vector_store(self, chunks: List):
