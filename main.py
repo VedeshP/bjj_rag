@@ -97,7 +97,7 @@ async def run_submission(
 
     try:
         # Call the RAG pipeline to get the answers
-        answers = processor.process_questions(
+        answers = processor.process_questions_new(
             doc_url=str(request.documents),
             questions=request.questions
         )
